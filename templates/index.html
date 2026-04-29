@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内部知识库系统</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>内部知识库系统</h1>
+            <p class="subtitle">基于RAG技术的智能问答平台</p>
+        </header>
+        
+        <div class="main-content">
+            <!-- 左侧面板：文件管理和配置 -->
+            <div class="sidebar">
+                <!-- 标签切换 -->
+                <div class="tabs">
+                    <button class="tab-button active" data-tab="files">文件管理</button>
+                    <button class="tab-button" data-tab="config">系统配置</button>
+                </div>
+                
+                <!-- 文件管理面板 -->
+                <div id="files-tab" class="tab-content active">
+                    <!-- 文件上传区域 -->
+                    <div class="upload-section">
+                        <h3>上传文件</h3>
+                        <div class="upload-area" id="uploadArea">
+                            <p>拖拽文件到此处或</p>
+                            <button class="btn btn-primary" id="selectFileBtn">选择文件</button>
+                            <input type="file" id="fileInput" multiple accept=".pdf,.txt,.md,.docx" style="display: none;">
+                            <p class="supported-types">支持格式: PDF, TXT, MD, DOCX</p>
+                        </div>
+                        
+                        <!-- 上传进度 -->
+                        <div class="upload-progress" id="uploadProgress" style="display: none;">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                            <p id="uploadStatus">正在上传...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 文件列表 -->
+                    <div class="file-list-section">
+                        <div class="section-header">
+                            <h3>知识库文件</h3>
+                            <button class="btn btn-secondary" id="refreshFilesBtn">刷新</button>
+                        </div>
+                        <div class="file-list" id="fileList">
+                            <p class="empty-message">暂无文件</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 数据库操作 -->
+                    <div class="database-actions">
+                        <h3>数据库操作</h3>
+                        <button class="btn btn-warning" id="rebuildDbBtn">重建数据库</button>
+                        <button class="btn btn-danger" id="clearDbBtn">清空数据库</button>
+                    </div>
+                </div>
+                
+                <!-- 配置面板 -->
+                <div id="config-tab" class="tab-content">
+                    <div class="config-section">
+                        <h3>路径配置</h3>
+                        <div class="form-group">
+                            <label for="kbPath">知识库存储路径</label>
+                            <input type="text" id="kbPath" class="form-input" placeholder="./knowledge_base">
+                        </div>
+                        <div class="form-group">
+                            <label for="vectorDbPath">向量数据库路径</label>
+                            <input type="text" id="vectorDbPath" class="form-input" placeholder="./vector_db">
+                        </div>
+                    </div>
+                    
+                    <div class="config-section">
+                        <h3>文档处理配置</h3>
+                        <div class="form-group">
+                            <label for="chunkSize">文档分块大小</label>
+                            <input type="number" id="chunkSize" class="form-input" value="1000" min="100" max="10000">
+                        </div>
+                        <div class="form-group">
+                            <label for="chunkOverlap">分块重叠大小</label>
+                            <input type="number" id="chunkOverlap" class="form-input" value="200" min="0" max="1000">
+                        </div>
+                    </div>
+                    
+                    <div class="config-section">
+                        <h3>RAG配置</h3>
+                        <div class="form-group">
+                            <label for="retrieverTopK">检索返回文档数</label>
+                            <input type="number" id="retrieverTopK" class="form-input" value="3" min="1" max="10">
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary" id="saveConfigBtn">保存配置</button>
+                    
+                    <!-- 当前配置显示 -->
+                    <div class="current-config">
+                        <h4>当前配置</h4>
+                        <div id="currentConfigDisplay">
+                            <p>加载中...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧面板：聊天界面 -->
+            <div class="chat-panel">
+                <div class="chat-header">
+                    <h3>智能问答</h3>
+                    <div class="chat-info">
+                        <span id="fileCount">0 个文件</span>
+                        <span class="separator">|</span>
+                        <span id="dbStatus">数据库: 未初始化</span>
+                    </div>
+                </div>
+                
+                <!-- 聊天消息区域 -->
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message system-message">
+                        <div class="message-content">
+                            <p>欢迎使用内部知识库系统！</p>
+                            <p>您可以：</p>
+                            <ul>
+                                <li>在左侧上传文档到知识库</li>
+                                <li>在下方输入问题进行查询</li>
+                                <li>系统会基于知识库内容为您提供答案</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 聊天输入区域 -->
+                <div class="chat-input-area">
+                    <div class="input-wrapper">
+                        <textarea 
+                            id="chatInput" 
+                            placeholder="输入您的问题..." 
+                            rows="2"
+                            maxlength="2000"
+                        ></textarea>
+                        <button class="btn btn-primary send-btn" id="sendBtn">
+                            发送
+                        </button>
+                    </div>
+                    <div class="input-hint">
+                        <span id="charCount">0/2000</span>
+                        <span class="shortcut">按 Enter 发送，Shift+Enter 换行</span>
+                    </div>
+                </div>
+                
+                <!-- 参考资料区域 -->
+                <div class="references-panel" id="referencesPanel" style="display: none;">
+                    <div class="references-header">
+                        <h4>参考资料</h4>
+                        <button class="btn btn-secondary" id="toggleReferencesBtn">收起</button>
+                    </div>
+                    <div class="references-content" id="referencesContent">
+                        <!-- 参考资料将在这里显示 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 提示框 -->
+    <div class="toast" id="toast"></div>
+    
+    <!-- 确认对话框 -->
+    <div class="modal" id="confirmModal" style="display: none;">
+        <div class="modal-content">
+            <h3 id="modalTitle">确认操作</h3>
+            <p id="modalMessage">确定要执行此操作吗？</p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="modalCancelBtn">取消</button>
+                <button class="btn btn-danger" id="modalConfirmBtn">确认</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
