@@ -1,0 +1,17 @@
+fastapi==0.109.0
+uvicorn==0.27.0
+langchain==0.1.0
+langchain-community==0.0.12
+chromadb==0.4.22
+pypdf==4.0.1
+python-multipart==0.0.6
+pydantic==2.5.3
+pydantic-settings==2.1.0
+aiofiles==23.2.1
+jinja2==3.1.2
+numpy==1.26.3
+scikit-learn==1.4.0
+
+# 高级嵌入模型（可选，需要更多内存和下载时间）
+# sentence-transformers==2.2.2
+# torch==2.1.2
