@@ -46,8 +46,8 @@ class Settings(BaseSettings):
     
     # 嵌入模型配置
     EMBEDDING_MODEL_TYPE: str = Field(
-        default="local",
-        description="嵌入模型类型：local或openai"
+        default="simple",
+        description="嵌入模型类型：simple（轻量级，推荐初学者）、huggingface（需要sentence-transformers）或openai（需要API密钥）"
     )
     
     EMBEDDING_MODEL_NAME: str = Field(

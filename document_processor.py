@@ -1,17 +1,213 @@
 import os
+import re
+import math
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
+from collections import Counter
 from langchain_community.document_loaders import (
     PyPDFLoader,
     TextLoader,
     DirectoryLoader
 )
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
+from langchain_core.embeddings import Embeddings
 
 from config import settings
+
+
+class SimpleEmbeddings(Embeddings):
+    """
+    轻量级嵌入模型，基于TF-IDF和n-gram统计
+    不需要外部依赖，适合初学者快速上手
+    """
+    
+    def __init__(self, embedding_dim: int = 384):
+        """
+        初始化简单嵌入模型
+        
+        Args:
+            embedding_dim: 嵌入向量的维度，默认384（与常用的MiniLM模型相同）
+        """
+        self.embedding_dim = embedding_dim
+        self.idf: Dict[str, float] = {}  # 逆文档频率
+        self.doc_count = 0  # 文档计数
+        self.vocab: Dict[str, int] = {}  # 词汇表
+        self._hash_range = embedding_dim * 10  # 哈希范围
+        
+    def _tokenize(self, text: str) -> List[str]:
+        """
+        简单的分词函数
+        
+        Args:
+            text: 输入文本
+            
+        Returns:
+            分词后的列表
+        """
+        # 转换为小写并分割
+        text = text.lower()
+        # 匹配中文、英文单词和数字
+        tokens = re.findall(r'[\u4e00-\u9fff]+|[a-zA-Z]+|\d+', text)
+        return tokens
+    
+    def _get_ngrams(self, tokens: List[str], n: int = 2) -> List[str]:
+        """
+        生成n-gram特征
+        
+        Args:
+            tokens: 分词列表
+            n: n-gram的n值
+            
+        Returns:
+            n-gram特征列表
+        """
+        ngrams = []
+        for i in range(len(tokens) - n + 1):
+            ngram = '_'.join(tokens[i:i+n])
+            ngrams.append(ngram)
+        return ngrams
+    
+    def _hash_feature(self, feature: str) -> int:
+        """
+        将特征哈希到固定范围
+        
+        Args:
+            feature: 特征字符串
+            
+        Returns:
+            哈希索引
+        """
+        return hash(feature) % self._hash_range
+    
+    def fit(self, texts: List[str]):
+        """
+        训练IDF（逆文档频率）
+        
+        Args:
+            texts: 文档列表
+        """
+        self.doc_count = len(texts)
+        doc_freq: Dict[str, int] = {}
+        
+        for text in texts:
+            tokens = self._tokenize(text)
+            # 使用unigram和bigram
+            features = tokens + self._get_ngrams(tokens, 2)
+            # 去重
+            unique_features = set(features)
+            
+            for feature in unique_features:
+                doc_freq[feature] = doc_freq.get(feature, 0) + 1
+        
+        # 计算IDF
+        for feature, freq in doc_freq.items():
+            # 平滑处理
+            self.idf[feature] = math.log((self.doc_count + 1) / (freq + 1)) + 1
+    
+    def _embed_text(self, text: str) -> List[float]:
+        """
+        将单个文本转换为嵌入向量
+        
+        Args:
+            text: 输入文本
+            
+        Returns:
+            嵌入向量
+        """
+        tokens = self._tokenize(text)
+        features = tokens + self._get_ngrams(tokens, 2)
+        
+        # 统计词频
+        tf = Counter(features)
+        
+        # 初始化向量
+        vector = [0.0] * self.embedding_dim
+        
+        # 计算TF-IDF并哈希到向量
+        for feature, count in tf.items():
+            # 计算TF-IDF值
+            idf_val = self.idf.get(feature, 1.0)  # 默认IDF为1.0
+            tf_idf = count * idf_val
+            
+            # 哈希到多个维度（使用特征哈希技巧）
+            hash_val = self._hash_feature(feature)
+            # 简单的符号确定（为了更好的分布）
+            sign = 1 if hash(feature + "_sign") % 2 == 0 else -1
+            
+            # 分布到多个维度
+            num_bins = min(5, self.embedding_dim)
+            for i in range(num_bins):
+                idx = (hash_val + i * 13) % self.embedding_dim
+                vector[idx] += sign * tf_idf * (1.0 / (i + 1))
+        
+        # L2归一化
+        norm = math.sqrt(sum(x * x for x in vector))
+        if norm > 0:
+            vector = [x / norm for x in vector]
+        
+        return vector
+    
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """
+        嵌入多个文档（LangChain要求的方法）
+        
+        Args:
+            texts: 文档列表
+            
+        Returns:
+            嵌入向量列表
+        """
+        # 如果还没有训练IDF，先用这些文本训练
+        if not self.idf:
+            self.fit(texts)
+        
+        return [self._embed_text(text) for text in texts]
+    
+    def embed_query(self, text: str) -> List[float]:
+        """
+        嵌入查询文本（LangChain要求的方法）
+        
+        Args:
+            text: 查询文本
+            
+        Returns:
+            嵌入向量
+        """
+        return self._embed_text(text)
+
+
+def get_embeddings():
+    """
+    获取嵌入模型实例，自动选择可用的最佳选项
+    """
+    # 首先尝试使用HuggingFace Embeddings（如果已安装）
+    if settings.EMBEDDING_MODEL_TYPE == "huggingface":
+        try:
+            from langchain_community.embeddings import HuggingFaceEmbeddings
+            return HuggingFaceEmbeddings(
+                model_name=settings.EMBEDDING_MODEL_NAME
+            )
+        except ImportError:
+            print("警告: 未安装sentence-transformers，使用轻量级嵌入模型")
+            return SimpleEmbeddings()
+    
+    # 使用OpenAI Embeddings
+    elif settings.EMBEDDING_MODEL_TYPE == "openai":
+        try:
+            from langchain_openai import OpenAIEmbeddings
+            return OpenAIEmbeddings(
+                model=settings.EMBEDDING_MODEL_NAME,
+                openai_api_key=settings.OPENAI_API_KEY
+            )
+        except ImportError:
+            print("警告: 未安装langchain-openai，使用轻量级嵌入模型")
+            return SimpleEmbeddings()
+    
+    # 默认使用轻量级嵌入模型
+    else:
+        return SimpleEmbeddings()
 
 
 class DocumentProcessor:
@@ -33,20 +229,10 @@ class DocumentProcessor:
     
     def _init_embeddings(self):
         """初始化嵌入模型"""
-        if settings.EMBEDDING_MODEL_TYPE == "local":
-            # 使用本地HuggingFace模型
-            return HuggingFaceEmbeddings(
-                model_name=settings.EMBEDDING_MODEL_NAME
-            )
-        elif settings.EMBEDDING_MODEL_TYPE == "openai":
-            # 使用OpenAI嵌入模型
-            from langchain_openai import OpenAIEmbeddings
-            return OpenAIEmbeddings(
-                model=settings.EMBEDDING_MODEL_NAME,
-                openai_api_key=settings.OPENAI_API_KEY
-            )
-        else:
-            raise ValueError(f"不支持的嵌入模型类型: {settings.EMBEDDING_MODEL_TYPE}")
+        print(f"正在初始化嵌入模型，类型: {settings.EMBEDDING_MODEL_TYPE}")
+        embeddings = get_embeddings()
+        print(f"嵌入模型初始化完成: {type(embeddings).__name__}")
+        return embeddings
     
     def _init_vectorstore(self):
         """初始化向量存储"""
