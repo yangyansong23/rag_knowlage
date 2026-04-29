@@ -1,205 +1,191 @@
-from typing import List, Optional, Dict, Any
-from langchain.chains import RetrievalQA
-from langchain.prompts import PromptTemplate
-from langchain_core.documents import Document
-
-from config import settings
+from typing import List, Dict, Any, Optional
 from document_processor import document_processor
+from config import settings
+from llm_service import llm_service
 
 
-class RAGSystem:
-    """RAG问答系统类"""
-    
+class SimpleRAGSystem:
+    """
+    简化的 RAG 问答系统
+    支持使用 LLM 进行智能回答生成
+    """
+
     def __init__(self):
-        # 初始化LLM
-        self.llm = self._init_llm()
-        
-        # 获取检索器
-        self.retriever = document_processor.get_retriever()
-        
-        # 创建RAG链
-        self.qa_chain = self._create_qa_chain()
-    
-    def _init_llm(self):
-        """初始化LLM模型"""
-        if settings.LLM_TYPE == "openai":
-            from langchain_openai import ChatOpenAI
-            return ChatOpenAI(
-                model_name=settings.LLM_MODEL_NAME,
-                openai_api_key=settings.OPENAI_API_KEY,
-                temperature=0.1
-            )
-        elif settings.LLM_TYPE == "local":
-            # 使用简单的本地模拟或提示用户配置
-            # 这里我们使用一个简单的实现，实际使用时可以替换为本地LLM
-            # 对于初学者，我们先实现一个基于模板的简单回答
-            # 实际部署时可以使用Ollama或其他本地模型
-            return self._create_simple_llm()
-        else:
-            raise ValueError(f"不支持的LLM类型: {settings.LLM_TYPE}")
-    
-    def _create_simple_llm(self):
-        """
-        创建一个简单的LLM实现，用于演示
-        实际使用时应该替换为真正的LLM
-        """
-        # 这里我们使用一个自定义的简单LLM类
-        # 它将基于检索到的文档生成回答
-        class SimpleLLM:
-            def invoke(self, prompt):
-                """简单的调用方法"""
-                # 解析prompt，提取问题和上下文
-                prompt_text = str(prompt)
-                
-                # 尝试从prompt中提取上下文和问题
-                # 这是一个简单的实现，实际LLM会更智能
-                try:
-                    # 提取上下文部分
-                    context_start = prompt_text.find("Context:")
-                    question_start = prompt_text.find("Question:")
-                    
-                    if context_start != -1 and question_start != -1:
-                        context = prompt_text[context_start + 8:question_start].strip()
-                        question = prompt_text[question_start + 9:].strip()
-                        
-                        # 基于上下文生成简单回答
-                        # 实际LLM会进行更复杂的推理
-                        return SimpleLLMResult(
-                            content=f"基于提供的上下文信息，关于'{question}'的回答如下：\n\n{context[:500]}..." if len(context) > 500 else f"基于提供的上下文信息，关于'{question}'的回答如下：\n\n{context}"
-                        )
-                except Exception:
-                    pass
-                
-                return SimpleLLMResult(
-                    content="抱歉，我目前无法处理您的问题。请确保已配置有效的LLM模型。"
-                )
-        
-        class SimpleLLMResult:
-            def __init__(self, content):
-                self.content = content
-        
-        return SimpleLLM()
-    
-    def _create_qa_chain(self):
-        """创建RAG问答链"""
-        # 定义提示模板
-        prompt_template = """
-使用以下上下文来回答最后的问题。如果你不知道答案，就说你不知道，不要试图编造答案。
+        """初始化 RAG 系统"""
+        print("RAG 问答系统初始化完成")
+        print(f"  - 检索返回数量: {settings.RETRIEVER_TOP_K}")
+        print(f"  - LLM 提供者: {settings.LLM_PROVIDER}")
 
-Context: {context}
-
-Question: {question}
-
-请给出详细的回答：
-"""
-        
-        PROMPT = PromptTemplate(
-            template=prompt_template,
-            input_variables=["context", "question"]
-        )
-        
-        # 创建RAG链
-        chain_type_kwargs = {"prompt": PROMPT}
-        
-        qa_chain = RetrievalQA.from_chain_type(
-            llm=self.llm,
-            chain_type="stuff",
-            retriever=self.retriever,
-            return_source_documents=True,
-            chain_type_kwargs=chain_type_kwargs
-        )
-        
-        return qa_chain
-    
     def query(self, question: str) -> Dict[str, Any]:
         """
-        执行RAG查询
-        
+        执行 RAG 查询
+
         Args:
             question: 用户的问题
-            
+
         Returns:
-            包含回答和源文档的字典
+            包含回答和参考资料的字典
         """
-        # 执行查询
-        result = self.qa_chain.invoke({"query": question})
-        
-        # 提取结果
-        answer = result.get("result", "")
-        source_documents = result.get("source_documents", [])
-        
-        # 准备响应
+        # 1. 检索相关文档
+        relevant_docs = document_processor.search(
+            query=question,
+            k=settings.RETRIEVER_TOP_K
+        )
+
+        # 2. 如果没有找到相关文档
+        if not relevant_docs:
+            return {
+                "question": question,
+                "answer": "抱歉，我在知识库中没有找到与您问题相关的信息。请先上传相关文档到知识库。",
+                "sources": [],
+                "llm_used": False
+            }
+
+        # 3. 准备上下文
+        context = self._build_context(relevant_docs)
+
+        # 4. 使用 LLM 生成回答
+        try:
+            answer = llm_service.generate_with_context(question, context)
+            llm_used = True
+        except Exception as e:
+            print(f"LLM 生成回答失败: {e}，使用备用方案")
+            answer = self._fallback_answer(question, relevant_docs)
+            llm_used = False
+
+        # 5. 准备响应
         response = {
             "question": question,
             "answer": answer,
-            "sources": []
+            "sources": relevant_docs,
+            "llm_used": llm_used,
+            "llm_provider": llm_service.active_provider if hasattr(llm_service, 'active_provider') else None
         }
-        
-        # 处理源文档
-        for doc in source_documents:
-            source_info = {
-                "content": doc.page_content,
-                "metadata": doc.metadata
-            }
-            response["sources"].append(source_info)
-        
+
         return response
-    
+
+    def _build_context(self, relevant_docs: List[Dict[str, Any]]) -> str:
+        """
+        构建上下文文本
+
+        Args:
+            relevant_docs: 相关文档列表
+
+        Returns:
+            合并后的上下文文本
+        """
+        context_parts = []
+
+        for i, doc in enumerate(relevant_docs):
+            source = doc["metadata"].get("source", f"文档 {i + 1}")
+            content = doc["content"]
+
+            context_parts.append(f"--- [来源: {source}] ---")
+            context_parts.append(content)
+            context_parts.append("")
+
+        return "\n".join(context_parts)
+
+    def _fallback_answer(self, question: str, relevant_docs: List[Dict[str, Any]]) -> str:
+        """
+        备用回答生成（当 LLM 不可用时）
+
+        Args:
+            question: 用户问题
+            relevant_docs: 相关文档列表
+
+        Returns:
+            备用回答
+        """
+        # 合并所有相关文档的内容
+        all_content = "\n\n".join([doc["content"] for doc in relevant_docs])
+
+        # 简单的回答生成逻辑
+        if not all_content.strip():
+            return "抱歉，没有找到足够的信息来回答您的问题。"
+
+        answer_parts = []
+
+        answer_parts.append("根据知识库中的相关信息，为您整理如下回答：\n")
+
+        # 添加文档摘要
+        for i, doc in enumerate(relevant_docs):
+            source = doc["metadata"].get("source", f"文档 {i + 1}")
+            content = doc["content"]
+
+            # 截取部分内容
+            preview = content[:300]
+            if len(content) > 300:
+                preview += "..."
+
+            answer_parts.append(f"\n【来源: {source}】")
+            answer_parts.append(preview)
+
+        answer_parts.append("\n\n💡 提示：")
+        answer_parts.append("- 以上信息来自知识库中检索到的相关文档片段")
+        answer_parts.append("- 当前使用的是备用回答模式")
+        answer_parts.append("- 如需更智能的回答，请配置 LLM 服务")
+
+        return "\n".join(answer_parts)
+
     def search_documents(self, query: str, k: int = None) -> List[Dict[str, Any]]:
         """
         仅搜索相关文档，不生成回答
-        
+
         Args:
             query: 查询文本
             k: 返回的文档数量
-            
+
         Returns:
             相关文档列表
         """
         if k is None:
             k = settings.RETRIEVER_TOP_K
-        
-        # 搜索相关文档
-        docs = document_processor.search(query, k=k)
-        
-        # 准备结果
-        results = []
-        for doc in docs:
-            results.append({
-                "content": doc.page_content,
-                "metadata": doc.metadata
-            })
-        
-        return results
-    
+
+        return document_processor.search(query, k)
+
     def get_relevant_context(self, question: str) -> str:
         """
-        获取与问题相关的上下文
-        
+        获取与问题相关的上下文文本
+
         Args:
-            question: 用户的问题
-            
+            question: 用户问题
+
         Returns:
             相关上下文文本
         """
-        # 搜索相关文档
         docs = document_processor.search(question)
-        
-        # 合并文档内容
-        context_parts = []
-        for i, doc in enumerate(docs):
-            source = doc.metadata.get("source", f"文档 {i+1}")
-            context_parts.append(f"[来源: {source}]\n{doc.page_content}\n")
-        
-        return "\n".join(context_parts)
-    
-    def refresh_chain(self):
+
+        if not docs:
+            return "没有找到相关的上下文信息。"
+
+        return self._build_context(docs)
+
+    def get_database_status(self) -> Dict[str, Any]:
         """
-        刷新RAG链，当向量数据库更新后调用
+        获取数据库状态
+
+        Returns:
+            数据库状态信息
         """
-        self.retriever = document_processor.get_retriever()
-        self.qa_chain = self._create_qa_chain()
+        count = document_processor.get_document_count()
+
+        return {
+            "document_count": count,
+            "collection_name": settings.VECTOR_DB_COLLECTION_NAME,
+            "retriever_top_k": settings.RETRIEVER_TOP_K,
+            "vector_db_type": settings.VECTOR_DB_TYPE
+        }
+
+    def get_llm_status(self) -> Dict[str, Any]:
+        """
+        获取 LLM 服务状态
+
+        Returns:
+            LLM 状态信息
+        """
+        return llm_service.get_status()
 
 
-# 创建全局RAG系统实例
-rag_system = RAGSystem()
+# 创建全局实例
+rag_system = SimpleRAGSystem()

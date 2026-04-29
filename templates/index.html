@@ -9,32 +9,33 @@
 <body>
     <div class="container">
         <header class="header">
-            <h1>内部知识库系统</h1>
-            <p class="subtitle">基于RAG技术的智能问答平台</p>
+            <h1>📚 内部知识库系统</h1>
+            <p class="subtitle">基于 RAG 技术的智能问答平台 v2.0</p>
         </header>
         
         <div class="main-content">
-            <!-- 左侧面板：文件管理和配置 -->
+            <!-- 左侧面板 -->
             <div class="sidebar">
-                <!-- 标签切换 -->
                 <div class="tabs">
-                    <button class="tab-button active" data-tab="files">文件管理</button>
-                    <button class="tab-button" data-tab="config">系统配置</button>
+                    <button class="tab-btn active" data-tab="files">📁 文件管理</button>
+                    <button class="tab-btn" data-tab="llm">🤖 LLM 配置</button>
+                    <button class="tab-btn" data-tab="vector-db">💾 向量数据库</button>
+                    <button class="tab-btn" data-tab="config">⚙️ 系统配置</button>
                 </div>
                 
-                <!-- 文件管理面板 -->
+                <!-- 文件管理 -->
                 <div id="files-tab" class="tab-content active">
-                    <!-- 文件上传区域 -->
                     <div class="upload-section">
-                        <h3>上传文件</h3>
+                        <h3>上传文档</h3>
                         <div class="upload-area" id="uploadArea">
-                            <p>拖拽文件到此处或</p>
+                            <div class="upload-icon">📄</div>
+                            <p>拖拽文件到此处</p>
+                            <p class="small">或点击下方按钮选择文件</p>
                             <button class="btn btn-primary" id="selectFileBtn">选择文件</button>
-                            <input type="file" id="fileInput" multiple accept=".pdf,.txt,.md,.docx" style="display: none;">
-                            <p class="supported-types">支持格式: PDF, TXT, MD, DOCX</p>
+                            <input type="file" id="fileInput" multiple accept=".pdf,.txt,.md" style="display: none;">
+                            <p class="supported">支持格式: PDF, TXT, MD</p>
                         </div>
                         
-                        <!-- 上传进度 -->
                         <div class="upload-progress" id="uploadProgress" style="display: none;">
                             <div class="progress-bar">
                                 <div class="progress-fill" id="progressFill"></div>
@@ -43,125 +44,286 @@
                         </div>
                     </div>
                     
-                    <!-- 文件列表 -->
                     <div class="file-list-section">
                         <div class="section-header">
                             <h3>知识库文件</h3>
-                            <button class="btn btn-secondary" id="refreshFilesBtn">刷新</button>
+                            <button class="btn btn-small btn-secondary" id="refreshFilesBtn">🔄 刷新</button>
                         </div>
                         <div class="file-list" id="fileList">
-                            <p class="empty-message">暂无文件</p>
+                            <p class="empty">暂无文件，请上传文档</p>
                         </div>
                     </div>
                     
-                    <!-- 数据库操作 -->
-                    <div class="database-actions">
+                    <div class="db-actions">
                         <h3>数据库操作</h3>
-                        <button class="btn btn-warning" id="rebuildDbBtn">重建数据库</button>
-                        <button class="btn btn-danger" id="clearDbBtn">清空数据库</button>
+                        <button class="btn btn-warning" id="rebuildBtn">🔧 重建数据库</button>
+                        <button class="btn btn-danger" id="clearBtn">🗑️ 清空数据库</button>
                     </div>
                 </div>
                 
-                <!-- 配置面板 -->
+                <!-- LLM 配置 -->
+                <div id="llm-tab" class="tab-content">
+                    <div class="config-section">
+                        <h3>LLM 提供者选择</h3>
+                        <div class="form-group">
+                            <label>选择 LLM 类型</label>
+                            <select id="llmProvider" class="form-select">
+                                <option value="rule_based">规则模式（无需配置）</option>
+                                <option value="ollama">本地 LLM (Ollama)</option>
+                                <option value="openai">OpenAI API</option>
+                                <option value="generic">通用 API 接口</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Ollama 配置 -->
+                    <div id="ollama-config" class="config-section provider-config" style="display: none;">
+                        <h3>Ollama 配置</h3>
+                        <div class="form-group">
+                            <label>服务地址</label>
+                            <input type="text" id="ollamaBaseUrl" value="http://localhost:11434" placeholder="http://localhost:11434">
+                        </div>
+                        <div class="form-group">
+                            <label>模型名称</label>
+                            <input type="text" id="ollamaModel" value="llama2" placeholder="例如: llama2, mistral, qwen">
+                            <p class="help-text">请确保已安装模型: ollama pull [模型名]</p>
+                        </div>
+                    </div>
+                    
+                    <!-- OpenAI 配置 -->
+                    <div id="openai-config" class="config-section provider-config" style="display: none;">
+                        <h3>OpenAI 配置</h3>
+                        <div class="form-group">
+                            <label>API 密钥</label>
+                            <input type="password" id="openaiApiKey" placeholder="sk-...">
+                        </div>
+                        <div class="form-group">
+                            <label>API 地址（可选，用于第三方兼容服务）</label>
+                            <input type="text" id="openaiBaseUrl" value="https://api.openai.com/v1" placeholder="https://api.openai.com/v1">
+                        </div>
+                        <div class="form-group">
+                            <label>模型名称</label>
+                            <input type="text" id="openaiModel" value="gpt-3.5-turbo" placeholder="例如: gpt-3.5-turbo, gpt-4">
+                        </div>
+                        <div class="form-group">
+                            <label>生成温度 (0.0-2.0)</label>
+                            <input type="number" id="openaiTemperature" value="0.7" min="0" max="2" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label>最大 Token 数</label>
+                            <input type="number" id="openaiMaxTokens" value="2000" min="100" max="10000">
+                        </div>
+                    </div>
+                    
+                    <!-- 通用 API 配置 -->
+                    <div id="generic-config" class="config-section provider-config" style="display: none;">
+                        <h3>通用 API 配置</h3>
+                        <div class="form-group">
+                            <label>API 端点 URL</label>
+                            <input type="text" id="genericApiUrl" placeholder="https://api.example.com/v1/chat">
+                        </div>
+                        <div class="form-group">
+                            <label>API 密钥（可选）</label>
+                            <input type="password" id="genericApiKey" placeholder="API 密钥">
+                        </div>
+                        <div class="form-group">
+                            <label>模型名称（可选）</label>
+                            <input type="text" id="genericApiModel" placeholder="模型名称">
+                        </div>
+                    </div>
+                    
+                    <div class="config-section">
+                        <button class="btn btn-primary" id="saveLlmConfig">💾 保存 LLM 配置</button>
+                        <button class="btn btn-secondary" id="testLlmConfig">🔍 测试连接</button>
+                    </div>
+                    
+                    <div class="current-config">
+                        <h4>当前 LLM 状态</h4>
+                        <div id="llmStatusDisplay">
+                            <p>加载中...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 向量数据库配置 -->
+                <div id="vector-db-tab" class="tab-content">
+                    <div class="config-section">
+                        <h3>向量数据库选择</h3>
+                        <div class="form-group">
+                            <label>选择向量数据库类型</label>
+                            <select id="vectorDbType" class="form-select">
+                                <option value="chroma">ChromaDB（本地文件，推荐）</option>
+                                <option value="faiss">FAISS（本地文件）</option>
+                                <option value="qdrant">Qdrant（本地/远程服务）</option>
+                                <option value="pinecone">Pinecone（云服务）</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Chroma 配置 -->
+                    <div id="chroma-config" class="config-section db-config">
+                        <h3>ChromaDB 配置</h3>
+                        <div class="form-group">
+                            <label>存储路径</label>
+                            <input type="text" id="chromaPath" value="./vector_db" placeholder="./vector_db">
+                        </div>
+                        <div class="form-group">
+                            <label>集合名称</label>
+                            <input type="text" id="chromaCollection" value="knowledge_base" placeholder="knowledge_base">
+                        </div>
+                    </div>
+                    
+                    <!-- FAISS 配置 -->
+                    <div id="faiss-config" class="config-section db-config" style="display: none;">
+                        <h3>FAISS 配置</h3>
+                        <div class="form-group">
+                            <label>存储路径</label>
+                            <input type="text" id="faissPath" value="./vector_db" placeholder="./vector_db">
+                        </div>
+                        <p class="help-text">需要安装: pip install faiss-cpu</p>
+                    </div>
+                    
+                    <!-- Qdrant 配置 -->
+                    <div id="qdrant-config" class="config-section db-config" style="display: none;">
+                        <h3>Qdrant 配置</h3>
+                        <div class="form-group">
+                            <label>主机地址</label>
+                            <input type="text" id="qdrantHost" value="localhost" placeholder="localhost">
+                        </div>
+                        <div class="form-group">
+                            <label>端口</label>
+                            <input type="number" id="qdrantPort" value="6333" placeholder="6333">
+                        </div>
+                        <div class="form-group">
+                            <label>API 密钥（可选，用于云服务）</label>
+                            <input type="password" id="qdrantApiKey" placeholder="API 密钥">
+                        </div>
+                        <div class="form-group">
+                            <label>集合名称</label>
+                            <input type="text" id="qdrantCollection" value="knowledge_base" placeholder="knowledge_base">
+                        </div>
+                        <p class="help-text">需要安装: pip install qdrant-client</p>
+                    </div>
+                    
+                    <!-- Pinecone 配置 -->
+                    <div id="pinecone-config" class="config-section db-config" style="display: none;">
+                        <h3>Pinecone 配置（云服务）</h3>
+                        <div class="form-group">
+                            <label>API 密钥</label>
+                            <input type="password" id="pineconeApiKey" placeholder="Pinecone API 密钥">
+                        </div>
+                        <div class="form-group">
+                            <label>环境</label>
+                            <input type="text" id="pineconeEnvironment" placeholder="例如: us-east4-gcp">
+                        </div>
+                        <div class="form-group">
+                            <label>索引名称</label>
+                            <input type="text" id="pineconeIndexName" value="knowledge-base" placeholder="knowledge-base">
+                        </div>
+                        <p class="help-text">需要安装: pip install pinecone-client</p>
+                    </div>
+                    
+                    <div class="config-section">
+                        <button class="btn btn-primary" id="saveVectorDbConfig">💾 保存数据库配置</button>
+                        <p class="warning-text">⚠️ 更改向量数据库类型后，需要重建数据库</p>
+                    </div>
+                    
+                    <div class="current-config">
+                        <h4>当前向量数据库状态</h4>
+                        <div id="vectorDbStatusDisplay">
+                            <p>加载中...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 系统配置 -->
                 <div id="config-tab" class="tab-content">
                     <div class="config-section">
                         <h3>路径配置</h3>
                         <div class="form-group">
-                            <label for="kbPath">知识库存储路径</label>
-                            <input type="text" id="kbPath" class="form-input" placeholder="./knowledge_base">
+                            <label>知识库路径</label>
+                            <input type="text" id="kbPath" value="./knowledge_base" readonly>
                         </div>
                         <div class="form-group">
-                            <label for="vectorDbPath">向量数据库路径</label>
-                            <input type="text" id="vectorDbPath" class="form-input" placeholder="./vector_db">
+                            <label>向量数据库路径</label>
+                            <input type="text" id="vectorDbPath" value="./vector_db" readonly>
                         </div>
                     </div>
                     
                     <div class="config-section">
                         <h3>文档处理配置</h3>
                         <div class="form-group">
-                            <label for="chunkSize">文档分块大小</label>
-                            <input type="number" id="chunkSize" class="form-input" value="1000" min="100" max="10000">
+                            <label>分块大小 (字符)</label>
+                            <input type="number" id="chunkSize" value="800" min="100" max="5000">
                         </div>
                         <div class="form-group">
-                            <label for="chunkOverlap">分块重叠大小</label>
-                            <input type="number" id="chunkOverlap" class="form-input" value="200" min="0" max="1000">
+                            <label>重叠大小 (字符)</label>
+                            <input type="number" id="chunkOverlap" value="150" min="0" max="1000">
+                        </div>
+                        <div class="form-group">
+                            <label>检索返回数量</label>
+                            <input type="number" id="retrieverK" value="3" min="1" max="10">
                         </div>
                     </div>
                     
                     <div class="config-section">
-                        <h3>RAG配置</h3>
-                        <div class="form-group">
-                            <label for="retrieverTopK">检索返回文档数</label>
-                            <input type="number" id="retrieverTopK" class="form-input" value="3" min="1" max="10">
-                        </div>
+                        <button class="btn btn-primary" id="saveSystemConfig">💾 保存系统配置</button>
                     </div>
                     
-                    <button class="btn btn-primary" id="saveConfigBtn">保存配置</button>
-                    
-                    <!-- 当前配置显示 -->
                     <div class="current-config">
-                        <h4>当前配置</h4>
-                        <div id="currentConfigDisplay">
+                        <h4>当前系统状态</h4>
+                        <div id="statusDisplay">
                             <p>加载中...</p>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <!-- 右侧面板：聊天界面 -->
+            <!-- 右侧聊天面板 -->
             <div class="chat-panel">
                 <div class="chat-header">
-                    <h3>智能问答</h3>
-                    <div class="chat-info">
-                        <span id="fileCount">0 个文件</span>
-                        <span class="separator">|</span>
-                        <span id="dbStatus">数据库: 未初始化</span>
+                    <h3>💬 智能问答</h3>
+                    <div class="status-info">
+                        <span id="docCount">0 个文档</span>
+                        <span class="sep">|</span>
+                        <span id="dbStatus">就绪</span>
+                        <span class="sep">|</span>
+                        <span id="llmStatus">规则模式</span>
                     </div>
                 </div>
                 
-                <!-- 聊天消息区域 -->
                 <div class="chat-messages" id="chatMessages">
-                    <div class="message system-message">
+                    <div class="message system">
                         <div class="message-content">
-                            <p>欢迎使用内部知识库系统！</p>
+                            <p>👋 欢迎使用内部知识库系统 v2.0！</p>
                             <p>您可以：</p>
                             <ul>
                                 <li>在左侧上传文档到知识库</li>
+                                <li>配置 LLM 服务以获得更智能的回答</li>
                                 <li>在下方输入问题进行查询</li>
-                                <li>系统会基于知识库内容为您提供答案</li>
+                            </ul>
+                            <p class="tip">💡 提示：</p>
+                            <ul class="tip-list">
+                                <li>默认使用规则模式，可在「🤖 LLM 配置」中切换</li>
+                                <li>支持 Ollama 本地模型、OpenAI API、通用 API 接口</li>
+                                <li>向量数据库可切换为 Chroma/FAISS/Qdrant/Pinecone</li>
                             </ul>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 聊天输入区域 -->
-                <div class="chat-input-area">
-                    <div class="input-wrapper">
-                        <textarea 
-                            id="chatInput" 
-                            placeholder="输入您的问题..." 
-                            rows="2"
-                            maxlength="2000"
-                        ></textarea>
-                        <button class="btn btn-primary send-btn" id="sendBtn">
-                            发送
-                        </button>
-                    </div>
-                    <div class="input-hint">
-                        <span id="charCount">0/2000</span>
-                        <span class="shortcut">按 Enter 发送，Shift+Enter 换行</span>
-                    </div>
+                <div class="chat-input">
+                    <textarea id="chatInput" placeholder="输入您的问题..." rows="2"></textarea>
+                    <button class="btn btn-primary send-btn" id="sendBtn">发送</button>
                 </div>
                 
-                <!-- 参考资料区域 -->
-                <div class="references-panel" id="referencesPanel" style="display: none;">
-                    <div class="references-header">
-                        <h4>参考资料</h4>
-                        <button class="btn btn-secondary" id="toggleReferencesBtn">收起</button>
+                <!-- 参考资料面板 -->
+                <div class="references" id="referencesPanel" style="display: none;">
+                    <div class="ref-header">
+                        <h4>📖 参考资料</h4>
+                        <button class="btn btn-small" id="toggleRefBtn">收起</button>
                     </div>
-                    <div class="references-content" id="referencesContent">
-                        <!-- 参考资料将在这里显示 -->
-                    </div>
+                    <div class="ref-content" id="refContent"></div>
                 </div>
             </div>
         </div>
@@ -171,13 +333,13 @@
     <div class="toast" id="toast"></div>
     
     <!-- 确认对话框 -->
-    <div class="modal" id="confirmModal" style="display: none;">
+    <div class="modal" id="modal" style="display: none;">
         <div class="modal-content">
             <h3 id="modalTitle">确认操作</h3>
             <p id="modalMessage">确定要执行此操作吗？</p>
             <div class="modal-actions">
-                <button class="btn btn-secondary" id="modalCancelBtn">取消</button>
-                <button class="btn btn-danger" id="modalConfirmBtn">确认</button>
+                <button class="btn btn-secondary" id="modalCancel">取消</button>
+                <button class="btn btn-danger" id="modalConfirm">确认</button>
             </div>
         </div>
     </div>
