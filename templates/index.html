@@ -10,7 +10,7 @@
     <div class="container">
         <header class="header">
             <h1>📚 内部知识库系统</h1>
-            <p class="subtitle">基于RAG技术的智能问答平台</p>
+            <p class="subtitle">基于 RAG 技术的智能问答平台 v2.0</p>
         </header>
         
         <div class="main-content">
@@ -18,6 +18,8 @@
             <div class="sidebar">
                 <div class="tabs">
                     <button class="tab-btn active" data-tab="files">📁 文件管理</button>
+                    <button class="tab-btn" data-tab="llm">🤖 LLM 配置</button>
+                    <button class="tab-btn" data-tab="vector-db">💾 向量数据库</button>
                     <button class="tab-btn" data-tab="config">⚙️ 系统配置</button>
                 </div>
                 
@@ -59,6 +61,181 @@
                     </div>
                 </div>
                 
+                <!-- LLM 配置 -->
+                <div id="llm-tab" class="tab-content">
+                    <div class="config-section">
+                        <h3>LLM 提供者选择</h3>
+                        <div class="form-group">
+                            <label>选择 LLM 类型</label>
+                            <select id="llmProvider" class="form-select">
+                                <option value="rule_based">规则模式（无需配置）</option>
+                                <option value="ollama">本地 LLM (Ollama)</option>
+                                <option value="openai">OpenAI API</option>
+                                <option value="generic">通用 API 接口</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Ollama 配置 -->
+                    <div id="ollama-config" class="config-section provider-config" style="display: none;">
+                        <h3>Ollama 配置</h3>
+                        <div class="form-group">
+                            <label>服务地址</label>
+                            <input type="text" id="ollamaBaseUrl" value="http://localhost:11434" placeholder="http://localhost:11434">
+                        </div>
+                        <div class="form-group">
+                            <label>模型名称</label>
+                            <input type="text" id="ollamaModel" value="llama2" placeholder="例如: llama2, mistral, qwen">
+                            <p class="help-text">请确保已安装模型: ollama pull [模型名]</p>
+                        </div>
+                    </div>
+                    
+                    <!-- OpenAI 配置 -->
+                    <div id="openai-config" class="config-section provider-config" style="display: none;">
+                        <h3>OpenAI 配置</h3>
+                        <div class="form-group">
+                            <label>API 密钥</label>
+                            <input type="password" id="openaiApiKey" placeholder="sk-...">
+                        </div>
+                        <div class="form-group">
+                            <label>API 地址（可选，用于第三方兼容服务）</label>
+                            <input type="text" id="openaiBaseUrl" value="https://api.openai.com/v1" placeholder="https://api.openai.com/v1">
+                        </div>
+                        <div class="form-group">
+                            <label>模型名称</label>
+                            <input type="text" id="openaiModel" value="gpt-3.5-turbo" placeholder="例如: gpt-3.5-turbo, gpt-4">
+                        </div>
+                        <div class="form-group">
+                            <label>生成温度 (0.0-2.0)</label>
+                            <input type="number" id="openaiTemperature" value="0.7" min="0" max="2" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label>最大 Token 数</label>
+                            <input type="number" id="openaiMaxTokens" value="2000" min="100" max="10000">
+                        </div>
+                    </div>
+                    
+                    <!-- 通用 API 配置 -->
+                    <div id="generic-config" class="config-section provider-config" style="display: none;">
+                        <h3>通用 API 配置</h3>
+                        <div class="form-group">
+                            <label>API 端点 URL</label>
+                            <input type="text" id="genericApiUrl" placeholder="https://api.example.com/v1/chat">
+                        </div>
+                        <div class="form-group">
+                            <label>API 密钥（可选）</label>
+                            <input type="password" id="genericApiKey" placeholder="API 密钥">
+                        </div>
+                        <div class="form-group">
+                            <label>模型名称（可选）</label>
+                            <input type="text" id="genericApiModel" placeholder="模型名称">
+                        </div>
+                    </div>
+                    
+                    <div class="config-section">
+                        <button class="btn btn-primary" id="saveLlmConfig">💾 保存 LLM 配置</button>
+                        <button class="btn btn-secondary" id="testLlmConfig">🔍 测试连接</button>
+                    </div>
+                    
+                    <div class="current-config">
+                        <h4>当前 LLM 状态</h4>
+                        <div id="llmStatusDisplay">
+                            <p>加载中...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 向量数据库配置 -->
+                <div id="vector-db-tab" class="tab-content">
+                    <div class="config-section">
+                        <h3>向量数据库选择</h3>
+                        <div class="form-group">
+                            <label>选择向量数据库类型</label>
+                            <select id="vectorDbType" class="form-select">
+                                <option value="chroma">ChromaDB（本地文件，推荐）</option>
+                                <option value="faiss">FAISS（本地文件）</option>
+                                <option value="qdrant">Qdrant（本地/远程服务）</option>
+                                <option value="pinecone">Pinecone（云服务）</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Chroma 配置 -->
+                    <div id="chroma-config" class="config-section db-config">
+                        <h3>ChromaDB 配置</h3>
+                        <div class="form-group">
+                            <label>存储路径</label>
+                            <input type="text" id="chromaPath" value="./vector_db" placeholder="./vector_db">
+                        </div>
+                        <div class="form-group">
+                            <label>集合名称</label>
+                            <input type="text" id="chromaCollection" value="knowledge_base" placeholder="knowledge_base">
+                        </div>
+                    </div>
+                    
+                    <!-- FAISS 配置 -->
+                    <div id="faiss-config" class="config-section db-config" style="display: none;">
+                        <h3>FAISS 配置</h3>
+                        <div class="form-group">
+                            <label>存储路径</label>
+                            <input type="text" id="faissPath" value="./vector_db" placeholder="./vector_db">
+                        </div>
+                        <p class="help-text">需要安装: pip install faiss-cpu</p>
+                    </div>
+                    
+                    <!-- Qdrant 配置 -->
+                    <div id="qdrant-config" class="config-section db-config" style="display: none;">
+                        <h3>Qdrant 配置</h3>
+                        <div class="form-group">
+                            <label>主机地址</label>
+                            <input type="text" id="qdrantHost" value="localhost" placeholder="localhost">
+                        </div>
+                        <div class="form-group">
+                            <label>端口</label>
+                            <input type="number" id="qdrantPort" value="6333" placeholder="6333">
+                        </div>
+                        <div class="form-group">
+                            <label>API 密钥（可选，用于云服务）</label>
+                            <input type="password" id="qdrantApiKey" placeholder="API 密钥">
+                        </div>
+                        <div class="form-group">
+                            <label>集合名称</label>
+                            <input type="text" id="qdrantCollection" value="knowledge_base" placeholder="knowledge_base">
+                        </div>
+                        <p class="help-text">需要安装: pip install qdrant-client</p>
+                    </div>
+                    
+                    <!-- Pinecone 配置 -->
+                    <div id="pinecone-config" class="config-section db-config" style="display: none;">
+                        <h3>Pinecone 配置（云服务）</h3>
+                        <div class="form-group">
+                            <label>API 密钥</label>
+                            <input type="password" id="pineconeApiKey" placeholder="Pinecone API 密钥">
+                        </div>
+                        <div class="form-group">
+                            <label>环境</label>
+                            <input type="text" id="pineconeEnvironment" placeholder="例如: us-east4-gcp">
+                        </div>
+                        <div class="form-group">
+                            <label>索引名称</label>
+                            <input type="text" id="pineconeIndexName" value="knowledge-base" placeholder="knowledge-base">
+                        </div>
+                        <p class="help-text">需要安装: pip install pinecone-client</p>
+                    </div>
+                    
+                    <div class="config-section">
+                        <button class="btn btn-primary" id="saveVectorDbConfig">💾 保存数据库配置</button>
+                        <p class="warning-text">⚠️ 更改向量数据库类型后，需要重建数据库</p>
+                    </div>
+                    
+                    <div class="current-config">
+                        <h4>当前向量数据库状态</h4>
+                        <div id="vectorDbStatusDisplay">
+                            <p>加载中...</p>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- 系统配置 -->
                 <div id="config-tab" class="tab-content">
                     <div class="config-section">
@@ -89,6 +266,10 @@
                         </div>
                     </div>
                     
+                    <div class="config-section">
+                        <button class="btn btn-primary" id="saveSystemConfig">💾 保存系统配置</button>
+                    </div>
+                    
                     <div class="current-config">
                         <h4>当前系统状态</h4>
                         <div id="statusDisplay">
@@ -106,20 +287,27 @@
                         <span id="docCount">0 个文档</span>
                         <span class="sep">|</span>
                         <span id="dbStatus">就绪</span>
+                        <span class="sep">|</span>
+                        <span id="llmStatus">规则模式</span>
                     </div>
                 </div>
                 
                 <div class="chat-messages" id="chatMessages">
                     <div class="message system">
                         <div class="message-content">
-                            <p>👋 欢迎使用内部知识库系统！</p>
+                            <p>👋 欢迎使用内部知识库系统 v2.0！</p>
                             <p>您可以：</p>
                             <ul>
                                 <li>在左侧上传文档到知识库</li>
+                                <li>配置 LLM 服务以获得更智能的回答</li>
                                 <li>在下方输入问题进行查询</li>
-                                <li>系统会基于知识库内容为您提供答案</li>
                             </ul>
-                            <p class="tip">💡 提示：先上传示例文档 <code>sample_document.txt</code> 来测试系统</p>
+                            <p class="tip">💡 提示：</p>
+                            <ul class="tip-list">
+                                <li>默认使用规则模式，可在「🤖 LLM 配置」中切换</li>
+                                <li>支持 Ollama 本地模型、OpenAI API、通用 API 接口</li>
+                                <li>向量数据库可切换为 Chroma/FAISS/Qdrant/Pinecone</li>
+                            </ul>
                         </div>
                     </div>
                 </div>

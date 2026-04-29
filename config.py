@@ -1,12 +1,13 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
 from pydantic import Field
+from typing import Dict, Any
 
 
 class Settings(BaseSettings):
     # 应用基本配置
     APP_NAME: str = "内部知识库系统"
-    APP_VERSION: str = "1.0.0"
+    APP_VERSION: str = "2.0.0"
     DEBUG: bool = True
 
     # 知识库存储路径
@@ -16,6 +17,11 @@ class Settings(BaseSettings):
     )
 
     # 向量数据库配置
+    VECTOR_DB_TYPE: str = Field(
+        default="chroma",
+        description="向量数据库类型: chroma, faiss, qdrant, pinecone"
+    )
+
     VECTOR_DB_PATH: str = Field(
         default="./vector_db",
         description="向量数据库存储路径"
@@ -24,6 +30,54 @@ class Settings(BaseSettings):
     VECTOR_DB_COLLECTION_NAME: str = Field(
         default="knowledge_base",
         description="向量数据库集合名称"
+    )
+
+    # Qdrant 配置
+    QDRANT_HOST: str = Field(
+        default="localhost",
+        description="Qdrant 主机地址"
+    )
+
+    QDRANT_PORT: int = Field(
+        default=6333,
+        description="Qdrant 端口"
+    )
+
+    QDRANT_API_KEY: str = Field(
+        default="",
+        description="Qdrant API 密钥（可选）"
+    )
+
+    # Pinecone 配置
+    PINECONE_API_KEY: str = Field(
+        default="",
+        description="Pinecone API 密钥"
+    )
+
+    PINECONE_ENVIRONMENT: str = Field(
+        default="",
+        description="Pinecone 环境"
+    )
+
+    PINECONE_INDEX_NAME: str = Field(
+        default="knowledge-base",
+        description="Pinecone 索引名称"
+    )
+
+    # 嵌入模型配置
+    EMBEDDING_TYPE: str = Field(
+        default="simple",
+        description="嵌入类型: simple, sentence_transformers, openai"
+    )
+
+    EMBEDDING_MODEL: str = Field(
+        default="all-MiniLM-L6-v2",
+        description="嵌入模型名称"
+    )
+
+    EMBEDDING_DIMENSION: int = Field(
+        default=384,
+        description="嵌入向量维度"
     )
 
     # 文档处理配置
@@ -49,9 +103,69 @@ class Settings(BaseSettings):
         description="支持上传的文件类型"
     )
 
+    # LLM 配置
+    LLM_PROVIDER: str = Field(
+        default="rule_based",
+        description="LLM 提供者类型: ollama, openai, generic, rule_based"
+    )
+
+    # Ollama 配置
+    OLLAMA_BASE_URL: str = Field(
+        default="http://localhost:11434",
+        description="Ollama 服务地址"
+    )
+
+    OLLAMA_MODEL: str = Field(
+        default="llama2",
+        description="Ollama 模型名称"
+    )
+
+    # OpenAI 配置
+    OPENAI_API_KEY: str = Field(
+        default="",
+        description="OpenAI API 密钥"
+    )
+
+    OPENAI_BASE_URL: str = Field(
+        default="https://api.openai.com/v1",
+        description="OpenAI API 基础地址"
+    )
+
+    OPENAI_MODEL: str = Field(
+        default="gpt-3.5-turbo",
+        description="OpenAI 模型名称"
+    )
+
+    OPENAI_TEMPERATURE: float = Field(
+        default=0.7,
+        description="生成温度 (0.0-2.0)"
+    )
+
+    OPENAI_MAX_TOKENS: int = Field(
+        default=2000,
+        description="最大生成 Token 数"
+    )
+
+    # 通用 API 配置
+    GENERIC_API_URL: str = Field(
+        default="",
+        description="通用 API 端点 URL"
+    )
+
+    GENERIC_API_KEY: str = Field(
+        default="",
+        description="通用 API 密钥（可选）"
+    )
+
+    GENERIC_API_MODEL: str = Field(
+        default="",
+        description="通用 API 模型名称（可选）"
+    )
+
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"
 
 
 # 创建设置实例
