@@ -180,6 +180,58 @@ class SimpleEmbeddingFunction:
         return vector
 
 
+def _force_disable_chroma_telemetry():
+    """
+    强制禁用 ChromaDB 遥测
+    在导入 chromadb 后立即调用此函数
+    """
+    try:
+        import chromadb
+        
+        # 尝试直接访问并禁用内部遥测
+        try:
+            # 方法 1: 尝试禁用 chromadb 内部的 telemetry_client
+            if hasattr(chromadb, 'telemetry'):
+                telemetry = chromadb.telemetry
+                if hasattr(telemetry, 'product'):
+                    product = telemetry.product
+                    if hasattr(product, 'SERVER_TELEMETRY'):
+                        product.SERVER_TELEMETRY = None
+                    if hasattr(product, 'CLIENT_TELEMETRY'):
+                        product.CLIENT_TELEMETRY = None
+        except Exception:
+            pass
+        
+        # 方法 2: 尝试 mock posthog (如果 chromadb 使用它)
+        try:
+            import sys
+            from unittest.mock import MagicMock
+            
+            # 检查是否有 posthog 模块被 chromadb 使用
+            if 'posthog' in sys.modules:
+                # 创建一个完全静默的 mock
+                class SilentPostHog:
+                    def __init__(self, *args, **kwargs):
+                        pass
+                    def capture(self, *args, **kwargs):
+                        pass
+                    def shutdown(self, *args, **kwargs):
+                        pass
+                    def identify(self, *args, **kwargs):
+                        pass
+                
+                # 替换 sys.modules 中的 posthog
+                sys.modules['posthog'] = MagicMock()
+                sys.modules['posthog'].capture = lambda *args, **kwargs: None
+                sys.modules['posthog'].shutdown = lambda *args, **kwargs: None
+        except Exception:
+            pass
+            
+    except Exception:
+        # 静默忽略任何错误
+        pass
+
+
 class ChromaDBVectorDB(VectorDBBase):
     """
     ChromaDB 向量数据库实现
@@ -189,6 +241,9 @@ class ChromaDBVectorDB(VectorDBBase):
         """初始化 ChromaDB"""
         import chromadb
         from chromadb.config import Settings as ChromaSettings
+        
+        # 强制禁用遥测
+        _force_disable_chroma_telemetry()
 
         self.embedding_function = SimpleEmbeddingFunction(
             embedding_dim=settings.EMBEDDING_DIMENSION
@@ -204,6 +259,9 @@ class ChromaDBVectorDB(VectorDBBase):
                 anonymized_telemetry=False
             )
         )
+        
+        # 再次尝试禁用遥测（客户端创建后）
+        _force_disable_chroma_telemetry()
 
         collection_name = settings.VECTOR_DB_COLLECTION_NAME
 

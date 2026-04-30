@@ -1,9 +1,5 @@
+import disable_telemetry  # 必须是第一个导入，用于禁用 ChromaDB 遥测
 import os
-
-# 禁用 ChromaDB 遥测 - 必须在导入 chromadb 之前设置
-os.environ["ANONYMIZED_TELEMETRY"] = "FALSE"
-os.environ["CHROMA_TELEMETRY_ENABLED"] = "FALSE"
-
 import shutil
 from pathlib import Path
 from typing import List, Optional
