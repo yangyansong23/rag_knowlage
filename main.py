@@ -45,12 +45,42 @@ class VectorDBConfigRequest(BaseModel):
     vector_db_type: str
     vector_db_path: Optional[str] = None
     vector_db_collection_name: Optional[str] = None
+
+    vector_db_index_type: Optional[str] = None
+    vector_db_distance_metric: Optional[str] = None
+    vector_db_persist: Optional[bool] = None
+
+    hnsw_m: Optional[int] = None
+    hnsw_ef_construction: Optional[int] = None
+    hnsw_ef_search: Optional[int] = None
+    ivf_nlist: Optional[int] = None
+    ivf_nprobe: Optional[int] = None
+
     qdrant_host: Optional[str] = None
     qdrant_port: Optional[int] = None
     qdrant_api_key: Optional[str] = None
+
     pinecone_api_key: Optional[str] = None
     pinecone_environment: Optional[str] = None
     pinecone_index_name: Optional[str] = None
+
+    milvus_host: Optional[str] = None
+    milvus_port: Optional[int] = None
+    milvus_username: Optional[str] = None
+    milvus_password: Optional[str] = None
+    milvus_database: Optional[str] = None
+    milvus_collection: Optional[str] = None
+
+    weaviate_host: Optional[str] = None
+    weaviate_port: Optional[int] = None
+    weaviate_api_key: Optional[str] = None
+
+    pgvector_host: Optional[str] = None
+    pgvector_port: Optional[int] = None
+    pgvector_database: Optional[str] = None
+    pgvector_username: Optional[str] = None
+    pgvector_password: Optional[str] = None
+    pgvector_table: Optional[str] = None
 
 
 class SystemConfigRequest(BaseModel):
@@ -113,15 +143,23 @@ async def get_config():
     config_data = {
         "app_name": settings.APP_NAME,
         "app_version": settings.APP_VERSION,
+        "server_host": settings.SERVER_HOST,
+        "server_port": settings.SERVER_PORT,
+        "port_auto_find": settings.PORT_AUTO_FIND,
+        "port_retry_max": settings.PORT_RETRY_MAX,
         "knowledge_base_path": settings.KNOWLEDGE_BASE_PATH,
         "vector_db_path": settings.VECTOR_DB_PATH,
         "vector_db_type": settings.VECTOR_DB_TYPE,
         "vector_db_collection_name": settings.VECTOR_DB_COLLECTION_NAME,
+        "vector_db_index_type": settings.VECTOR_DB_INDEX_TYPE,
+        "vector_db_distance_metric": settings.VECTOR_DB_DISTANCE_METRIC,
+        "vector_db_persist": settings.VECTOR_DB_PERSIST,
         "chunk_size": settings.CHUNK_SIZE,
         "chunk_overlap": settings.CHUNK_OVERLAP,
         "retriever_top_k": settings.RETRIEVER_TOP_K,
         "supported_file_types": settings.SUPPORTED_FILE_TYPES,
-        "llm_provider": settings.LLM_PROVIDER
+        "llm_provider": settings.LLM_PROVIDER,
+        "embedding_provider": settings.EMBEDDING_PROVIDER
     }
     return APIResponse(
         success=True,
@@ -218,12 +256,19 @@ async def save_vector_db_config(config: VectorDBConfigRequest):
     """保存向量数据库配置"""
     try:
         settings.VECTOR_DB_TYPE = config.vector_db_type
-        
+
         if config.vector_db_path:
             settings.VECTOR_DB_PATH = config.vector_db_path
         if config.vector_db_collection_name:
             settings.VECTOR_DB_COLLECTION_NAME = config.vector_db_collection_name
-        
+
+        if config.vector_db_index_type:
+            settings.VECTOR_DB_INDEX_TYPE = config.vector_db_index_type
+        if config.vector_db_distance_metric:
+            settings.VECTOR_DB_DISTANCE_METRIC = config.vector_db_distance_metric
+        if config.vector_db_persist is not None:
+            settings.VECTOR_DB_PERSIST = config.vector_db_persist
+
         if config.vector_db_type == "qdrant":
             if config.qdrant_host:
                 settings.QDRANT_HOST = config.qdrant_host
@@ -231,7 +276,7 @@ async def save_vector_db_config(config: VectorDBConfigRequest):
                 settings.QDRANT_PORT = config.qdrant_port
             if config.qdrant_api_key:
                 settings.QDRANT_API_KEY = config.qdrant_api_key
-                
+
         elif config.vector_db_type == "pinecone":
             if config.pinecone_api_key:
                 settings.PINECONE_API_KEY = config.pinecone_api_key
@@ -239,15 +284,17 @@ async def save_vector_db_config(config: VectorDBConfigRequest):
                 settings.PINECONE_ENVIRONMENT = config.pinecone_environment
             if config.pinecone_index_name:
                 settings.PINECONE_INDEX_NAME = config.pinecone_index_name
-        
+
         return APIResponse(
             success=True,
             message=f"向量数据库配置已保存，当前类型: {config.vector_db_type}。请重建数据库以应用新配置。",
             data={
-                "vector_db_type": config.vector_db_type
+                "vector_db_type": config.vector_db_type,
+                "index_type": config.vector_db_index_type,
+                "distance_metric": config.vector_db_distance_metric
             }
         )
-        
+
     except Exception as e:
         return APIResponse(
             success=False,
@@ -606,12 +653,34 @@ async def health_check():
     }
 
 
-if __name__ == "__main__":
+def run_server():
+    """运行服务器，处理端口自动选择"""
     import uvicorn
+    from port_manager import port_manager
+
+    print(f"\n{'=' * 60}")
+    print(f"正在启动 {settings.APP_NAME} v{settings.APP_VERSION}")
+    print(f"{'=' * 60}")
+
+    final_port = port_manager.get_server_port()
+    final_host = settings.SERVER_HOST
+
+    print(f"\n服务器配置:")
+    print(f"  - 主机地址: {final_host}")
+    print(f"  - 服务端口: {final_port}")
+    print(f"  - 自动端口查找: {'启用' if settings.PORT_AUTO_FIND else '禁用'}")
+    print(f"  - 最大重试次数: {settings.PORT_RETRY_MAX}")
+    print(f"\n{'=' * 60}")
+    print(f"服务已就绪，请访问: http://localhost:{final_port}")
+    print(f"{'=' * 60}\n")
 
     uvicorn.run(
         "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True
+        host=final_host,
+        port=final_port,
+        reload=settings.DEBUG
     )
+
+
+if __name__ == "__main__":
+    run_server()

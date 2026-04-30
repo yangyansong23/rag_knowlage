@@ -6,12 +6,12 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 from collections import Counter
 
-from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 
 from config import settings
 from vector_db import get_vector_db, VectorDBBase
+from document_loaders import loader_factory
 
 
 class DocumentProcessor:
@@ -47,17 +47,8 @@ class DocumentProcessor:
         Returns:
             文档列表
         """
-        file_extension = Path(file_path).suffix.lower()
-
         try:
-            if file_extension == ".pdf":
-                loader = PyPDFLoader(file_path)
-                return loader.load()
-            elif file_extension in [".txt", ".md"]:
-                loader = TextLoader(file_path)
-                return loader.load()
-            else:
-                raise ValueError(f"不支持的文件类型: {file_extension}")
+            return loader_factory.load_document(file_path)
         except Exception as e:
             print(f"加载文档失败 {file_path}: {e}")
             raise
@@ -179,8 +170,8 @@ class DocumentProcessor:
         total_chunks = 0
         errors = []
 
-        # 支持的文件扩展名
-        supported_extensions = {".pdf", ".txt", ".md"}
+        # 支持的文件扩展名（从文档加载器工厂获取）
+        supported_extensions = set(loader_factory.get_supported_extensions())
 
         # 遍历目录
         for file_path in dir_path.iterdir():

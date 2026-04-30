@@ -1,14 +1,35 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
 from pydantic import Field
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 
 class Settings(BaseSettings):
     # 应用基本配置
     APP_NAME: str = "内部知识库系统"
-    APP_VERSION: str = "2.0.0"
+    APP_VERSION: str = "2.1.0"
     DEBUG: bool = True
+
+    # 服务器配置
+    SERVER_HOST: str = Field(
+        default="0.0.0.0",
+        description="服务器监听地址"
+    )
+
+    SERVER_PORT: int = Field(
+        default=8000,
+        description="服务器端口"
+    )
+
+    PORT_RETRY_MAX: int = Field(
+        default=10,
+        description="端口占用时最大重试次数"
+    )
+
+    PORT_AUTO_FIND: bool = Field(
+        default=True,
+        description="是否自动查找可用端口"
+    )
 
     # 知识库存储路径
     KNOWLEDGE_BASE_PATH: str = Field(
@@ -98,9 +119,36 @@ class Settings(BaseSettings):
     )
 
     # 支持的文件类型
-    SUPPORTED_FILE_TYPES: list = Field(
-        default=["pdf", "txt", "md"],
+    SUPPORTED_FILE_TYPES: List[str] = Field(
+        default=["pdf", "txt", "md", "doc", "docx", "xls", "xlsx", "ppt", "pptx"],
         description="支持上传的文件类型"
+    )
+
+    # 嵌入模型配置（扩展）
+    EMBEDDING_PROVIDER: str = Field(
+        default="simple",
+        description="嵌入提供者类型: simple, openai, huggingface, ollama"
+    )
+
+    EMBEDDING_BATCH_SIZE: int = Field(
+        default=32,
+        description="嵌入处理批量大小"
+    )
+
+    # 向量数据库高级配置
+    VECTOR_DB_PERSIST: bool = Field(
+        default=True,
+        description="向量数据库是否持久化存储"
+    )
+
+    VECTOR_DB_INDEX_TYPE: str = Field(
+        default="flat",
+        description="向量索引类型: flat, hnsw, ivfflat"
+    )
+
+    VECTOR_DB_DISTANCE_METRIC: str = Field(
+        default="cosine",
+        description="距离度量方式: cosine, l2, inner_product"
     )
 
     # LLM 配置

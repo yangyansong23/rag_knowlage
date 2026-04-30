@@ -65,7 +65,44 @@ const dom = {
     // 向量数据库配置
     vectorDbType: document.getElementById('vectorDbType'),
     saveVectorDbConfig: document.getElementById('saveVectorDbConfig'),
-    
+
+    // 高级配置
+    indexType: document.getElementById('indexType'),
+    indexTypeDescription: document.getElementById('indexTypeDescription'),
+    distanceMetric: document.getElementById('distanceMetric'),
+    metricDescription: document.getElementById('metricDescription'),
+    storageMode: document.getElementById('storageMode'),
+
+    // HNSW 参数
+    hnswM: document.getElementById('hnswM'),
+    hnswEfConstruction: document.getElementById('hnswEfConstruction'),
+    hnswEfSearch: document.getElementById('hnswEfSearch'),
+
+    // IVF 参数
+    ivfNlist: document.getElementById('ivfNlist'),
+    ivfNprobe: document.getElementById('ivfNprobe'),
+
+    // Milvus 配置
+    milvusHost: document.getElementById('milvusHost'),
+    milvusPort: document.getElementById('milvusPort'),
+    milvusUsername: document.getElementById('milvusUsername'),
+    milvusPassword: document.getElementById('milvusPassword'),
+    milvusDatabase: document.getElementById('milvusDatabase'),
+    milvusCollection: document.getElementById('milvusCollection'),
+
+    // Weaviate 配置
+    weaviateHost: document.getElementById('weaviateHost'),
+    weaviatePort: document.getElementById('weaviatePort'),
+    weaviateApiKey: document.getElementById('weaviateApiKey'),
+
+    // PGVector 配置
+    pgvectorHost: document.getElementById('pgvectorHost'),
+    pgvectorPort: document.getElementById('pgvectorPort'),
+    pgvectorDatabase: document.getElementById('pgvectorDatabase'),
+    pgvectorUsername: document.getElementById('pgvectorUsername'),
+    pgvectorPassword: document.getElementById('pgvectorPassword'),
+    pgvectorTable: document.getElementById('pgvectorTable'),
+
     // 系统配置
     chunkSize: document.getElementById('chunkSize'),
     chunkOverlap: document.getElementById('chunkOverlap'),
@@ -174,6 +211,23 @@ function initChat() {
     });
 }
 
+// 索引类型描述
+const indexTypeDescriptions = {
+    'flat': '暴力搜索 - 100% 召回率，适合小规模数据',
+    'hnsw': '分层导航小世界图 - 高召回率，高性能，内存占用较高',
+    'ivfflat': '倒排文件 + 暴力搜索 - 平衡性能和召回率',
+    'ivfsq8': '倒排文件 + 标量量化 - 高性能，内存占用低',
+    'ivfpq': '倒排文件 + 乘积量化 - 极高压缩率，适合大规模数据'
+};
+
+// 距离度量描述
+const metricDescriptions = {
+    'cosine': '余弦相似度 - 适合文本相似度计算，不受向量长度影响',
+    'l2': '欧几里得距离 - 适合空间坐标，受向量长度影响',
+    'inner_product': '内积 - 与余弦相似度类似，但受向量长度影响',
+    'dot_product': '点积 - 同内积'
+};
+
 // 配置事件
 function initConfigEvents() {
     // LLM 提供者切换
@@ -182,32 +236,72 @@ function initConfigEvents() {
             updateLlmConfigDisplay(e.target.value);
         });
     }
-    
+
     // 向量数据库类型切换
     if (dom.vectorDbType) {
         dom.vectorDbType.addEventListener('change', (e) => {
             updateVectorDbConfigDisplay(e.target.value);
         });
     }
-    
+
+    // 索引类型切换
+    if (dom.indexType) {
+        dom.indexType.addEventListener('change', (e) => {
+            updateIndexTypeDisplay(e.target.value);
+        });
+    }
+
+    // 距离度量切换
+    if (dom.distanceMetric) {
+        dom.distanceMetric.addEventListener('change', (e) => {
+            updateMetricDisplay(e.target.value);
+        });
+    }
+
     // 保存 LLM 配置
     if (dom.saveLlmConfig) {
         dom.saveLlmConfig.addEventListener('click', saveLlmConfiguration);
     }
-    
+
     // 测试 LLM 配置
     if (dom.testLlmConfig) {
         dom.testLlmConfig.addEventListener('click', testLlmConfiguration);
     }
-    
+
     // 保存向量数据库配置
     if (dom.saveVectorDbConfig) {
         dom.saveVectorDbConfig.addEventListener('click', saveVectorDbConfiguration);
     }
-    
+
     // 保存系统配置
     if (dom.saveSystemConfig) {
         dom.saveSystemConfig.addEventListener('click', saveSystemConfiguration);
+    }
+}
+
+// 更新索引类型显示
+function updateIndexTypeDisplay(indexType) {
+    if (dom.indexTypeDescription) {
+        dom.indexTypeDescription.textContent = indexTypeDescriptions[indexType] || indexType;
+    }
+
+    // 显示/隐藏高级配置
+    const hnswConfig = document.getElementById('hnsw-config');
+    const ivfConfig = document.getElementById('ivf-config');
+
+    if (hnswConfig) {
+        hnswConfig.style.display = indexType === 'hnsw' ? 'block' : 'none';
+    }
+
+    if (ivfConfig) {
+        ivfConfig.style.display = ['ivfflat', 'ivfsq8', 'ivfpq'].includes(indexType) ? 'block' : 'none';
+    }
+}
+
+// 更新距离度量显示
+function updateMetricDisplay(metric) {
+    if (dom.metricDescription) {
+        dom.metricDescription.textContent = metricDescriptions[metric] || metric;
     }
 }
 
@@ -281,19 +375,36 @@ function loadCurrentConfig() {
         .then(data => {
             if (data.success && data.data) {
                 const config = data.data;
-                
+
                 // 更新 LLM 配置
                 if (config.llm_provider) {
                     dom.llmProvider.value = config.llm_provider;
                     updateLlmConfigDisplay(config.llm_provider);
                 }
-                
+
                 // 更新向量数据库配置
                 if (config.vector_db_type) {
                     dom.vectorDbType.value = config.vector_db_type;
                     updateVectorDbConfigDisplay(config.vector_db_type);
                 }
-                
+
+                // 更新索引类型配置
+                if (config.vector_db_index_type) {
+                    dom.indexType.value = config.vector_db_index_type;
+                    updateIndexTypeDisplay(config.vector_db_index_type);
+                }
+
+                // 更新距离度量配置
+                if (config.vector_db_distance_metric) {
+                    dom.distanceMetric.value = config.vector_db_distance_metric;
+                    updateMetricDisplay(config.vector_db_distance_metric);
+                }
+
+                // 更新存储模式
+                if (config.vector_db_persist !== undefined && dom.storageMode) {
+                    dom.storageMode.value = config.vector_db_persist ? 'persistent' : 'in_memory';
+                }
+
                 // 更新系统配置
                 if (config.chunk_size) {
                     dom.chunkSize.value = config.chunk_size;
@@ -648,7 +759,37 @@ async function saveVectorDbConfiguration() {
     const config = {
         vector_db_type: dbType
     };
-    
+
+    // 添加高级配置
+    if (dom.indexType?.value) {
+        config.vector_db_index_type = dom.indexType.value;
+    }
+    if (dom.distanceMetric?.value) {
+        config.vector_db_distance_metric = dom.distanceMetric.value;
+    }
+    if (dom.storageMode?.value) {
+        config.vector_db_persist = dom.storageMode.value === 'persistent';
+    }
+
+    // 添加 HNSW 参数
+    if (dom.hnswM?.value) {
+        config.hnsw_m = parseInt(dom.hnswM.value) || 16;
+    }
+    if (dom.hnswEfConstruction?.value) {
+        config.hnsw_ef_construction = parseInt(dom.hnswEfConstruction.value) || 200;
+    }
+    if (dom.hnswEfSearch?.value) {
+        config.hnsw_ef_search = parseInt(dom.hnswEfSearch.value) || 128;
+    }
+
+    // 添加 IVF 参数
+    if (dom.ivfNlist?.value) {
+        config.ivf_nlist = parseInt(dom.ivfNlist.value) || 1024;
+    }
+    if (dom.ivfNprobe?.value) {
+        config.ivf_nprobe = parseInt(dom.ivfNprobe.value) || 10;
+    }
+
     // 根据数据库类型添加特定配置
     if (dbType === 'chroma') {
         config.vector_db_path = dom.chromaPath?.value;
@@ -664,8 +805,26 @@ async function saveVectorDbConfiguration() {
         config.pinecone_api_key = dom.pineconeApiKey?.value;
         config.pinecone_environment = dom.pineconeEnvironment?.value;
         config.pinecone_index_name = dom.pineconeIndexName?.value;
+    } else if (dbType === 'milvus') {
+        config.milvus_host = dom.milvusHost?.value;
+        config.milvus_port = parseInt(dom.milvusPort?.value) || 19530;
+        config.milvus_username = dom.milvusUsername?.value;
+        config.milvus_password = dom.milvusPassword?.value;
+        config.milvus_database = dom.milvusDatabase?.value;
+        config.vector_db_collection_name = dom.milvusCollection?.value;
+    } else if (dbType === 'weaviate') {
+        config.weaviate_host = dom.weaviateHost?.value;
+        config.weaviate_port = parseInt(dom.weaviatePort?.value) || 8080;
+        config.weaviate_api_key = dom.weaviateApiKey?.value;
+    } else if (dbType === 'pgvector') {
+        config.pgvector_host = dom.pgvectorHost?.value;
+        config.pgvector_port = parseInt(dom.pgvectorPort?.value) || 5432;
+        config.pgvector_database = dom.pgvectorDatabase?.value;
+        config.pgvector_username = dom.pgvectorUsername?.value;
+        config.pgvector_password = dom.pgvectorPassword?.value;
+        config.pgvector_table = dom.pgvectorTable?.value;
     }
-    
+
     try {
         const response = await fetch('/api/config/vector-db', {
             method: 'POST',
@@ -674,9 +833,9 @@ async function saveVectorDbConfiguration() {
             },
             body: JSON.stringify(config)
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             showToast('向量数据库配置已保存。请重建数据库以应用新配置。', 'success');
             loadStatus();
