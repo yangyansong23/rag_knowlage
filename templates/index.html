@@ -32,8 +32,8 @@
                             <p>拖拽文件到此处</p>
                             <p class="small">或点击下方按钮选择文件</p>
                             <button class="btn btn-primary" id="selectFileBtn">选择文件</button>
-                            <input type="file" id="fileInput" multiple accept=".pdf,.txt,.md" style="display: none;">
-                            <p class="supported">支持格式: PDF, TXT, MD</p>
+                            <input type="file" id="fileInput" multiple accept=".pdf,.txt,.md,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv" style="display: none;">
+                            <p class="supported">支持格式: PDF, TXT, MD, Word, Excel, PowerPoint, CSV</p>
                         </div>
                         
                         <div class="upload-progress" id="uploadProgress" style="display: none;">
@@ -153,13 +153,83 @@
                             <label>选择向量数据库类型</label>
                             <select id="vectorDbType" class="form-select">
                                 <option value="chroma">ChromaDB（本地文件，推荐）</option>
-                                <option value="faiss">FAISS（本地文件）</option>
-                                <option value="qdrant">Qdrant（本地/远程服务）</option>
-                                <option value="pinecone">Pinecone（云服务）</option>
+                                <option value="faiss">FAISS（高性能本地）</option>
+                                <option value="qdrant">Qdrant（开源向量数据库）</option>
+                                <option value="pinecone">Pinecone（云原生向量数据库）</option>
+                                <option value="milvus">Milvus（开源向量数据库）</option>
+                                <option value="weaviate">Weaviate（开源向量数据库）</option>
+                                <option value="pgvector">PGVector（PostgreSQL 扩展）</option>
                             </select>
                         </div>
                     </div>
-                    
+
+                    <!-- 高级配置（所有数据库通用） -->
+                    <div class="config-section">
+                        <h3>高级配置</h3>
+                        <div class="form-group">
+                            <label>索引类型</label>
+                            <select id="indexType" class="form-select">
+                                <option value="flat">Flat - 暴力搜索（100% 召回率）</option>
+                                <option value="hnsw">HNSW - 分层导航小世界图（高性能）</option>
+                                <option value="ivfflat">IVF_FLAT - 倒排文件（平衡性能）</option>
+                                <option value="ivfsq8">IVF_SQ8 - 标量量化（高性能低内存）</option>
+                                <option value="ivfpq">IVF_PQ - 乘积量化（极高压缩率）</option>
+                            </select>
+                            <p class="help-text" id="indexTypeDescription">暴力搜索 - 100% 召回率，适合小规模数据</p>
+                        </div>
+                        <div class="form-group">
+                            <label>距离度量方式</label>
+                            <select id="distanceMetric" class="form-select">
+                                <option value="cosine">Cosine - 余弦相似度（推荐）</option>
+                                <option value="l2">L2 - 欧几里得距离</option>
+                                <option value="inner_product">Inner Product - 内积</option>
+                            </select>
+                            <p class="help-text" id="metricDescription">余弦相似度 - 适合文本相似度计算，不受向量长度影响</p>
+                        </div>
+                        <div class="form-group">
+                            <label>存储模式</label>
+                            <select id="storageMode" class="form-select">
+                                <option value="persistent">持久化存储</option>
+                                <option value="in_memory">内存模式（重启后丢失）</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- HNSW 高级参数 -->
+                    <div id="hnsw-config" class="config-section advanced-config" style="display: none;">
+                        <h4>HNSW 索引参数</h4>
+                        <div class="form-group">
+                            <label>M - 每层最大连接数 (默认: 16)</label>
+                            <input type="number" id="hnswM" value="16" min="4" max="64">
+                            <p class="help-text">越大召回率越高，内存占用越大</p>
+                        </div>
+                        <div class="form-group">
+                            <label>ef_construction - 构建时搜索范围 (默认: 200)</label>
+                            <input type="number" id="hnswEfConstruction" value="200" min="10" max="1000">
+                            <p class="help-text">越大构建越慢，索引质量越高</p>
+                        </div>
+                        <div class="form-group">
+                            <label>ef_search - 搜索时搜索范围 (默认: 128)</label>
+                            <input type="number" id="hnswEfSearch" value="128" min="10" max="1000">
+                            <p class="help-text">越大搜索越慢，召回率越高</p>
+                        </div>
+                    </div>
+
+                    <!-- IVF 高级参数 -->
+                    <div id="ivf-config" class="config-section advanced-config" style="display: none;">
+                        <h4>IVF 索引参数</h4>
+                        <div class="form-group">
+                            <label>nlist - 聚类中心数量 (默认: 1024)</label>
+                            <input type="number" id="ivfNlist" value="1024" min="1" max="10000">
+                            <p class="help-text">建议为数据量的平方根</p>
+                        </div>
+                        <div class="form-group">
+                            <label>nprobe - 搜索时访问的聚类数 (默认: 10)</label>
+                            <input type="number" id="ivfNprobe" value="10" min="1" max="1000">
+                            <p class="help-text">越大搜索越慢，召回率越高</p>
+                        </div>
+                    </div>
+
                     <!-- Chroma 配置 -->
                     <div id="chroma-config" class="config-section db-config">
                         <h3>ChromaDB 配置</h3>
@@ -171,8 +241,9 @@
                             <label>集合名称</label>
                             <input type="text" id="chromaCollection" value="knowledge_base" placeholder="knowledge_base">
                         </div>
+                        <p class="help-text">零配置即用，适合入门和小规模数据</p>
                     </div>
-                    
+
                     <!-- FAISS 配置 -->
                     <div id="faiss-config" class="config-section db-config" style="display: none;">
                         <h3>FAISS 配置</h3>
@@ -180,9 +251,9 @@
                             <label>存储路径</label>
                             <input type="text" id="faissPath" value="./vector_db" placeholder="./vector_db">
                         </div>
-                        <p class="help-text">需要安装: pip install faiss-cpu</p>
+                        <p class="help-text">需要安装: pip install faiss-cpu（高性能本地向量检索）</p>
                     </div>
-                    
+
                     <!-- Qdrant 配置 -->
                     <div id="qdrant-config" class="config-section db-config" style="display: none;">
                         <h3>Qdrant 配置</h3>
@@ -204,7 +275,7 @@
                         </div>
                         <p class="help-text">需要安装: pip install qdrant-client</p>
                     </div>
-                    
+
                     <!-- Pinecone 配置 -->
                     <div id="pinecone-config" class="config-section db-config" style="display: none;">
                         <h3>Pinecone 配置（云服务）</h3>
@@ -222,12 +293,90 @@
                         </div>
                         <p class="help-text">需要安装: pip install pinecone-client</p>
                     </div>
-                    
+
+                    <!-- Milvus 配置 -->
+                    <div id="milvus-config" class="config-section db-config" style="display: none;">
+                        <h3>Milvus 配置</h3>
+                        <div class="form-group">
+                            <label>主机地址</label>
+                            <input type="text" id="milvusHost" value="localhost" placeholder="localhost">
+                        </div>
+                        <div class="form-group">
+                            <label>端口</label>
+                            <input type="number" id="milvusPort" value="19530" placeholder="19530">
+                        </div>
+                        <div class="form-group">
+                            <label>用户名（可选）</label>
+                            <input type="text" id="milvusUsername" placeholder="用户名">
+                        </div>
+                        <div class="form-group">
+                            <label>密码（可选）</label>
+                            <input type="password" id="milvusPassword" placeholder="密码">
+                        </div>
+                        <div class="form-group">
+                            <label>数据库名（可选）</label>
+                            <input type="text" id="milvusDatabase" placeholder="default">
+                        </div>
+                        <div class="form-group">
+                            <label>集合名称</label>
+                            <input type="text" id="milvusCollection" value="knowledge_base" placeholder="knowledge_base">
+                        </div>
+                        <p class="help-text">需要安装: pip install pymilvus</p>
+                    </div>
+
+                    <!-- Weaviate 配置 -->
+                    <div id="weaviate-config" class="config-section db-config" style="display: none;">
+                        <h3>Weaviate 配置</h3>
+                        <div class="form-group">
+                            <label>主机地址</label>
+                            <input type="text" id="weaviateHost" value="localhost" placeholder="localhost">
+                        </div>
+                        <div class="form-group">
+                            <label>端口</label>
+                            <input type="number" id="weaviatePort" value="8080" placeholder="8080">
+                        </div>
+                        <div class="form-group">
+                            <label>API 密钥（可选）</label>
+                            <input type="password" id="weaviateApiKey" placeholder="API 密钥">
+                        </div>
+                        <p class="help-text">需要安装: pip install weaviate-client</p>
+                    </div>
+
+                    <!-- PGVector 配置 -->
+                    <div id="pgvector-config" class="config-section db-config" style="display: none;">
+                        <h3>PGVector 配置（PostgreSQL 扩展）</h3>
+                        <div class="form-group">
+                            <label>主机地址</label>
+                            <input type="text" id="pgvectorHost" value="localhost" placeholder="localhost">
+                        </div>
+                        <div class="form-group">
+                            <label>端口</label>
+                            <input type="number" id="pgvectorPort" value="5432" placeholder="5432">
+                        </div>
+                        <div class="form-group">
+                            <label>数据库名</label>
+                            <input type="text" id="pgvectorDatabase" value="postgres" placeholder="数据库名">
+                        </div>
+                        <div class="form-group">
+                            <label>用户名</label>
+                            <input type="text" id="pgvectorUsername" value="postgres" placeholder="用户名">
+                        </div>
+                        <div class="form-group">
+                            <label>密码</label>
+                            <input type="password" id="pgvectorPassword" placeholder="密码">
+                        </div>
+                        <div class="form-group">
+                            <label>表名</label>
+                            <input type="text" id="pgvectorTable" value="knowledge_base" placeholder="表名">
+                        </div>
+                        <p class="help-text">需要安装: pip install psycopg2-binary pgvector</p>
+                    </div>
+
                     <div class="config-section">
                         <button class="btn btn-primary" id="saveVectorDbConfig">💾 保存数据库配置</button>
-                        <p class="warning-text">⚠️ 更改向量数据库类型后，需要重建数据库</p>
+                        <p class="warning-text">⚠️ 更改向量数据库类型或索引类型后，需要重建数据库</p>
                     </div>
-                    
+
                     <div class="current-config">
                         <h4>当前向量数据库状态</h4>
                         <div id="vectorDbStatusDisplay">
